@@ -28,6 +28,9 @@ fn build_fm(app: &Application) {
     let (sidebar_box, sidebar_selection) = sidebar::build_sidebar();
     let (files_scroll, files_list) = files_panel::build_files_panel();
 
+    let home_path = dirs::home_dir().unwrap_or_default();
+    populate_files_list(&files_list, &home_path);
+
     sidebar_selection.connect_selected_notify(glib::clone!(#[strong] files_list, move |sel| {
         let idx = sel.selected();
         if idx == gtk4::INVALID_LIST_POSITION { return; }
@@ -62,6 +65,18 @@ fn build_fm(app: &Application) {
     paned.set_resize_start_child(false);
     paned.set_shrink_start_child(false);
 
+
     window.set_child(Some(&paned));
     window.present();
+}
+
+fn populate_files_list(files_list: &gtk4::StringList, path: &std::path::Path) {
+    while files_list.n_items() > 0 {
+        files_list.remove(0);
+    }
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            files_list.append(&entry.path().to_string_lossy());
+        }
+    }
 }
