@@ -4,7 +4,7 @@ mod sidebar;
 mod style;
 
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Box as GtkBox, Orientation};
+use gtk4::{Application, ApplicationWindow, Orientation, Paned};
 use gtk4::glib;
 
 const APP_ID: &str = "org.filemanager.axfm";
@@ -54,10 +54,14 @@ fn build_fm(app: &Application) {
         }
     }));
 
-    let content_box = GtkBox::new(Orientation::Horizontal, 6);
-    content_box.append(&sidebar_box);
-    content_box.append(&files_scroll);
+    let paned = Paned::new(Orientation::Horizontal);
+    paned.set_start_child(Some(&sidebar_box));
+    paned.set_end_child(Some(&files_scroll));
+    paned.set_position(200);
+    paned.set_wide_handle(true);
+    paned.set_resize_start_child(false);
+    paned.set_shrink_start_child(false);
 
-    window.set_child(Some(&content_box));
+    window.set_child(Some(&paned));
     window.present();
 }

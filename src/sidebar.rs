@@ -1,12 +1,12 @@
 use gtk4::prelude::*;
 use gtk4::{
     ListView, ScrolledWindow, SignalListItemFactory, SingleSelection,
-    StringList,
+    StringList, Box as GtkBox, Orientation
 };
 use std::path::PathBuf;
 use xdg::BaseDirectories;
 
-pub fn build_sidebar() -> (gtk4::Box, SingleSelection) {
+pub fn build_sidebar() -> (GtkBox, SingleSelection) {
     let sidebar_items = get_sidebar_items();
     let labels: Vec<&str> = sidebar_items.iter().map(|(name, _)| *name).collect();
 
@@ -39,10 +39,12 @@ pub fn build_sidebar() -> (gtk4::Box, SingleSelection) {
         .vexpand(true)
         .build();
 
-    // Sidebar box
-    let sidebar_box = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+    // Building Sidebar
+    let sidebar_box = GtkBox::new(Orientation::Vertical, 0);
+    sidebar_box.set_hexpand(false);
+    sidebar_box.set_width_request(180);
 
-    let heading_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
+    let heading_box = GtkBox::new(Orientation::Horizontal, 0);
     let heading = gtk4::Label::new(Some("Places"));
     heading.add_css_class("sidebar-heading");
     heading.set_margin_top(6);
@@ -52,7 +54,13 @@ pub fn build_sidebar() -> (gtk4::Box, SingleSelection) {
     heading.set_xalign(0.0);
 
     let headerbar = crate::headerbar::build_headerbar();
+
+    // spacer to fill space
+    let spacer = GtkBox::new(Orientation::Horizontal, 0);
+    spacer.set_hexpand(true);
+
     heading_box.append(&heading);
+    heading_box.append(&spacer);
     heading_box.append(&headerbar);
 
     sidebar_box.append(&heading_box);
