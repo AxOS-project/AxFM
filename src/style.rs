@@ -7,6 +7,9 @@ pub fn load_css() {
 	        font-size: 18px;
 	        font-weight: bold;
 	    }
+        .pathbar {
+            margin: 5px;
+        }
 	",
     );
 

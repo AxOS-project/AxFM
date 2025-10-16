@@ -1,8 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{
-    ListView, ScrolledWindow, SignalListItemFactory, SingleSelection,
-    StringList,
-};
+use gtk4::{ListView, ScrolledWindow, SignalListItemFactory, SingleSelection, StringList};
 
 pub fn build_files_panel() -> (ScrolledWindow, StringList) {
     let files_list = StringList::new(&[]);

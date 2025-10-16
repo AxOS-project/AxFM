@@ -1,7 +1,7 @@
 use gtk4::prelude::*;
 use gtk4::{
-    ListView, ScrolledWindow, SignalListItemFactory, SingleSelection,
-    StringList, Box as GtkBox, Orientation
+    Box as GtkBox, ListView, Orientation, ScrolledWindow, SignalListItemFactory, SingleSelection,
+    StringList,
 };
 use std::path::PathBuf;
 use xdg::BaseDirectories;
@@ -16,6 +16,7 @@ pub fn build_sidebar() -> (GtkBox, SingleSelection) {
     let factory = SignalListItemFactory::new();
     factory.connect_setup(|_, item| {
         let label = gtk4::Label::new(None);
+        label.set_xalign(0.0);
         label.set_margin_top(6);
         label.set_margin_bottom(6);
         label.set_margin_start(12);
