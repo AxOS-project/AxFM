@@ -7,9 +7,10 @@ mod style;
 
 use gtk4::glib;
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Orientation, Paned, Box as GtkBox};
-use std::rc::Rc;
+use gtk4::{Application, ApplicationWindow, Box as GtkBox, Orientation, Paned};
 use std::cell::RefCell;
+use std::path::PathBuf;
+use std::rc::Rc;
 
 const APP_ID: &str = "org.filemanager.axfm";
 
@@ -69,6 +70,23 @@ fn build_fm(app: &Application) {
                     }
                 }
                 fmstate.borrow_mut().set_path(path.clone());
+            }
+        }
+    ));
+
+    path_bar.connect_activate(glib::clone!(
+        #[strong]
+        files_list,
+        move |widget| {
+            let path = PathBuf::from(widget.text());
+            if let Ok(entries) = std::fs::read_dir(path) {
+                while files_list.n_items() > 0 {
+                    files_list.remove(0);
+                }
+
+                for entry in entries.flatten() {
+                    files_list.append(&entry.path().to_string_lossy());
+                }
             }
         }
     ));

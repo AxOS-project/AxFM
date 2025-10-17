@@ -1,10 +1,41 @@
 use crate::state::FmState;
-use gtk4::Entry;
+use fuzzy_matcher::FuzzyMatcher;
+use fuzzy_matcher::skim::SkimMatcherV2;
+use gtk4::glib;
+use gtk4::glib::Type;
+use gtk4::prelude::Cast;
 use gtk4::prelude::EditableExt;
+use gtk4::prelude::EntryExt;
+use gtk4::prelude::ToValue;
 use gtk4::prelude::WidgetExt;
+use gtk4::{Entry, EntryCompletion, ListStore};
+use std::fs;
+use std::path::Path;
 
 pub fn build_pathbar(fmstate: &mut FmState) -> Entry {
     let pathbar = Entry::new();
+
+    let completion = EntryCompletion::new();
+    completion.set_inline_completion(true);
+    completion.set_inline_selection(true);
+
+    let model = ListStore::new(&[Type::STRING]);
+
+    let current_path = fmstate.current_path.clone();
+
+    if let Ok(entries) = fs::read_dir(&current_path) {
+		for entry in entries.flatten() {
+		    let file_name = entry.file_name().to_string_lossy().to_string();
+		    let iter = model.append();
+		    model.set(&iter, &[(0, &file_name.to_value())]);
+		}
+    }
+
+    completion.set_model(Some(&model));
+    completion.set_text_column(0);
+
+    pathbar.set_completion(Some(&completion));
+
     pathbar.set_text(
         fmstate
             .current_path
@@ -13,13 +44,13 @@ pub fn build_pathbar(fmstate: &mut FmState) -> Entry {
     );
 
     fmstate.connect_path_changed({
-	    let pathbar = pathbar.clone();
-	    move |new_path| {
-	        if let Some(s) = new_path.to_str() {
-	            pathbar.set_text(s);
-	        }
-	    }
-	});
+        let pathbar = pathbar.clone();
+        move |new_path| {
+            if let Some(s) = new_path.to_str() {
+                pathbar.set_text(s);
+            }
+        }
+    });
 
     pathbar.add_css_class("pathbar");
 

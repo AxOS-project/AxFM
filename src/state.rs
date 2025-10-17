@@ -9,7 +9,7 @@ impl FmState {
     pub fn new(current_path: PathBuf) -> Self {
         Self {
             current_path,
-            on_path_changed: Vec::new()
+            on_path_changed: Vec::new(),
         }
     }
 
