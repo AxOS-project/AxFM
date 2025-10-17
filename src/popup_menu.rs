@@ -13,7 +13,6 @@ pub fn get_empty_right_click(content_area: &gtk4::Box) -> Popover {
     });
 
     vbox.append(&new_folder);
-    vbox.append(&refresh);
 
     popover.set_child(Some(&vbox));
 
