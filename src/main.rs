@@ -35,7 +35,7 @@ fn build_fm(app: &Application) {
 
     let (sidebar_box, sidebar_selection) = sidebar::build_sidebar();
     let path_bar = pathbar::build_pathbar(&mut fmstate.borrow_mut());
-    let (files_scroll, files_list) = files_panel::build_files_panel();
+    let (files_scroll, files_list, list_view) = files_panel::build_files_panel();
 
     populate_files_list(&files_list, &home_path);
 
@@ -86,6 +86,24 @@ fn build_fm(app: &Application) {
 
                 for entry in entries.flatten() {
                     files_list.append(&entry.path().to_string_lossy());
+                }
+            }
+        }
+    ));
+
+    list_view.connect_activate(glib::clone!(
+        #[strong]
+        fmstate,
+        #[strong]
+        files_list,
+        move |lv, position| {
+            if let Some(obj) = lv.model().and_then(|m| m.item(position)) {
+                let path = std::path::PathBuf::from(
+                    obj.downcast::<gtk4::StringObject>().unwrap().string(),
+                );
+                if path.is_dir() {
+                    populate_files_list(&files_list, &path);
+                    fmstate.borrow_mut().set_path(path.join(""));
                 }
             }
         }

@@ -1,7 +1,7 @@
 use gtk4::prelude::*;
 use gtk4::{ListView, ScrolledWindow, SignalListItemFactory, SingleSelection, StringList};
 
-pub fn build_files_panel() -> (ScrolledWindow, StringList) {
+pub fn build_files_panel() -> (ScrolledWindow, StringList, ListView) {
     let files_list = StringList::new(&[]);
     let files_selection = SingleSelection::new(Some(files_list.clone()));
 
@@ -48,5 +48,5 @@ pub fn build_files_panel() -> (ScrolledWindow, StringList) {
         .hexpand(true)
         .build();
 
-    (scroll, files_list)
+    (scroll, files_list, list_view)
 }
