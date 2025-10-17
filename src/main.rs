@@ -4,10 +4,11 @@ mod pathbar;
 mod sidebar;
 mod state;
 mod style;
+mod popup_menu;
 
 use gtk4::glib;
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Box as GtkBox, Orientation, Paned};
+use gtk4::{Application, ApplicationWindow, Box as GtkBox, Orientation, Paned, GestureClick};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -30,12 +31,18 @@ fn build_fm(app: &Application) {
 
     style::load_css();
 
+    // where files will be shown
+    let content_area = GtkBox::new(Orientation::Vertical, 0);
+
     let home_path = dirs::home_dir().unwrap_or(PathBuf::from("/")).join("");
     let fmstate = Rc::new(RefCell::new(state::FmState::new(home_path.clone())));
 
     let (sidebar_box, sidebar_selection) = sidebar::build_sidebar();
     let path_bar = pathbar::build_pathbar(&mut fmstate.borrow_mut());
     let (files_scroll, files_list, list_view) = files_panel::build_files_panel();
+
+    // right click menus
+    let empty_area_menu = popup_menu::get_empty_right_click(&content_area);
 
     populate_files_list(&files_list, &home_path);
 
@@ -109,10 +116,22 @@ fn build_fm(app: &Application) {
         }
     ));
 
+    // controllers
+    let empty_right_click = GestureClick::new();
+    empty_right_click.set_button(3);
+
+    empty_right_click.connect_released(glib::clone!(#[weak] empty_area_menu, move |_, _, x, y| {
+        let rect = gtk4::gdk::Rectangle::new(x as i32, y as i32, 1, 1);
+        empty_area_menu.set_pointing_to(Some(&rect));
+        empty_area_menu.popup()
+    }));
+
     // content area
-    let content_area = GtkBox::new(Orientation::Vertical, 0);
     content_area.append(&path_bar);
     content_area.append(&files_scroll);
+
+    // setup controllers
+    content_area.add_controller(empty_right_click);
 
     let paned = Paned::new(Orientation::Horizontal);
     paned.set_start_child(Some(&sidebar_box));
