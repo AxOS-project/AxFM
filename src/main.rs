@@ -30,7 +30,7 @@ fn build_fm(app: &Application) {
 
     style::load_css();
 
-    let home_path = dirs::home_dir().unwrap_or_default();
+    let home_path = dirs::home_dir().unwrap_or(PathBuf::from("/")).join("");
     let fmstate = Rc::new(RefCell::new(state::FmState::new(home_path.clone())));
 
     let (sidebar_box, sidebar_selection) = sidebar::build_sidebar();
@@ -52,12 +52,12 @@ fn build_fm(app: &Application) {
 
             let paths = [
                 dirs::home_dir().unwrap().join(""),
-                dirs::home_dir().unwrap().join("Documents"),
-                dirs::home_dir().unwrap().join("Downloads"),
-                dirs::home_dir().unwrap().join("Music"),
-                dirs::home_dir().unwrap().join("Pictures"),
-                dirs::home_dir().unwrap().join("Videos"),
-                dirs::home_dir().unwrap().join(".local/share/Trash"),
+                dirs::home_dir().unwrap().join("Documents/"),
+                dirs::home_dir().unwrap().join("Downloads/"),
+                dirs::home_dir().unwrap().join("Music/"),
+                dirs::home_dir().unwrap().join("Pictures/"),
+                dirs::home_dir().unwrap().join("Videos/"),
+                dirs::home_dir().unwrap().join(".local/share/Trash/files/"),
             ];
 
             if let Some(path) = paths.get(idx as usize) {

@@ -1,16 +1,11 @@
 use crate::state::FmState;
-use fuzzy_matcher::FuzzyMatcher;
-use fuzzy_matcher::skim::SkimMatcherV2;
-use gtk4::glib;
 use gtk4::glib::Type;
-use gtk4::prelude::Cast;
 use gtk4::prelude::EditableExt;
 use gtk4::prelude::EntryExt;
 use gtk4::prelude::ToValue;
 use gtk4::prelude::WidgetExt;
 use gtk4::{Entry, EntryCompletion, ListStore};
 use std::fs;
-use std::path::Path;
 
 pub fn build_pathbar(fmstate: &mut FmState) -> Entry {
     let pathbar = Entry::new();
@@ -24,11 +19,12 @@ pub fn build_pathbar(fmstate: &mut FmState) -> Entry {
     let current_path = fmstate.current_path.clone();
 
     if let Ok(entries) = fs::read_dir(&current_path) {
-		for entry in entries.flatten() {
-		    let file_name = entry.file_name().to_string_lossy().to_string();
-		    let iter = model.append();
-		    model.set(&iter, &[(0, &file_name.to_value())]);
-		}
+        for entry in entries.flatten() {
+            let full_path = entry.path();
+            let full_path_str = full_path.to_string_lossy().to_string();
+            let iter = model.append();
+            model.set(&iter, &[(0, &full_path_str.to_value())]);
+        }
     }
 
     completion.set_model(Some(&model));
@@ -48,6 +44,17 @@ pub fn build_pathbar(fmstate: &mut FmState) -> Entry {
         move |new_path| {
             if let Some(s) = new_path.to_str() {
                 pathbar.set_text(s);
+
+                model.clear();
+
+                if let Ok(entries) = fs::read_dir(&s) {
+                    for entry in entries.flatten() {
+                        let full_path = entry.path();
+                        let full_path_str = full_path.to_string_lossy().to_string();
+                        let iter = model.append();
+                        model.set(&iter, &[(0, &full_path_str.to_value())]);
+                    }
+                }
             }
         }
     });

@@ -106,6 +106,6 @@ fn get_sidebar_items() -> Vec<(&'static str, PathBuf)> {
                 .find_data_file("Videos")
                 .unwrap_or(home.join("Videos")),
         ),
-        ("Trash", home.join(".local/share/Trash")),
+        ("Trash", home.join(".local/share/Trash/files")),
     ]
 }
