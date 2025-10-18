@@ -43,11 +43,7 @@ pub fn build_sidebar() -> (GtkBox, SingleSelection) {
             let icon = hbox.first_child().and_downcast::<gtk4::Image>().unwrap();
             let label = hbox.last_child().and_downcast::<gtk4::Label>().unwrap();
 
-            let obj = item
-                .item()
-                .unwrap()
-                .downcast::<gtk4::StringObject>()
-                .unwrap();
+            let obj = item.item().unwrap().downcast::<gtk4::StringObject>().unwrap();
             let label_text = obj.string();
             label.set_text(&label_text);
 
@@ -74,11 +70,8 @@ pub fn build_sidebar() -> (GtkBox, SingleSelection) {
     ));
 
     let list_view = ListView::new(Some(sidebar_selection.clone()), Some(factory));
-    let scroll = ScrolledWindow::builder()
-        .child(&list_view)
-        .min_content_width(180)
-        .vexpand(true)
-        .build();
+    let scroll =
+        ScrolledWindow::builder().child(&list_view).min_content_width(180).vexpand(true).build();
 
     // Building Sidebar
     let sidebar_box = GtkBox::new(Orientation::Vertical, 0);
@@ -116,36 +109,11 @@ fn get_sidebar_items() -> Vec<(&'static str, PathBuf)> {
 
     vec![
         ("Home", home.clone()),
-        (
-            "Documents",
-            xdg_dirs
-                .find_data_file("Documents")
-                .unwrap_or(home.join("Documents")),
-        ),
-        (
-            "Downloads",
-            xdg_dirs
-                .find_data_file("Downloads")
-                .unwrap_or(home.join("Downloads")),
-        ),
-        (
-            "Music",
-            xdg_dirs
-                .find_data_file("Music")
-                .unwrap_or(home.join("Music")),
-        ),
-        (
-            "Pictures",
-            xdg_dirs
-                .find_data_file("Pictures")
-                .unwrap_or(home.join("Pictures")),
-        ),
-        (
-            "Videos",
-            xdg_dirs
-                .find_data_file("Videos")
-                .unwrap_or(home.join("Videos")),
-        ),
+        ("Documents", xdg_dirs.find_data_file("Documents").unwrap_or(home.join("Documents"))),
+        ("Downloads", xdg_dirs.find_data_file("Downloads").unwrap_or(home.join("Downloads"))),
+        ("Music", xdg_dirs.find_data_file("Music").unwrap_or(home.join("Music"))),
+        ("Pictures", xdg_dirs.find_data_file("Pictures").unwrap_or(home.join("Pictures"))),
+        ("Videos", xdg_dirs.find_data_file("Videos").unwrap_or(home.join("Videos"))),
         ("Trash", home.join(".local/share/Trash/files")),
     ]
 }

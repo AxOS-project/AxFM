@@ -32,12 +32,7 @@ pub fn build_pathbar(fmstate: &mut FmState) -> Entry {
 
     pathbar.set_completion(Some(&completion));
 
-    pathbar.set_text(
-        fmstate
-            .current_path
-            .to_str()
-            .expect("Failed to convert PathBuf to &str"),
-    );
+    pathbar.set_text(fmstate.current_path.to_str().expect("Failed to convert PathBuf to &str"));
 
     fmstate.connect_path_changed({
         let pathbar = pathbar.clone();

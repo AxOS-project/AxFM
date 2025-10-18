@@ -1,10 +1,11 @@
 use crate::state::FmState;
-use gtk4::glib;
+use gtk4::gio::ThemedIcon;
 use gtk4::prelude::*;
 use gtk4::{
-    EventControllerMotion, ListView, ScrolledWindow, SignalListItemFactory, SingleSelection,
-    StringList,
+    DragIcon, DragSource, EventControllerMotion, ListView, ScrolledWindow, SignalListItemFactory,
+    SingleSelection, StringList,
 };
+use gtk4::{gdk, glib};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -25,7 +26,7 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
             hbox.append(&label);
             item.set_child(Some(&hbox));
 
-            // hover detection
+            // setup hover detection
             let motion = EventControllerMotion::new();
 
             motion.connect_enter(glib::clone!(
@@ -49,6 +50,53 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
             ));
 
             hbox.add_controller(motion);
+
+            // setup drag
+            let drag_source = DragSource::new();
+            drag_source.set_actions(gdk::DragAction::COPY);
+
+            // This provides the data when drag starts
+            drag_source.connect_prepare(glib::clone!(
+                #[strong]
+                fmstate,
+                move |_, _, _| {
+                    if let Some(file) = &fmstate.borrow().hovered_file {
+                        let uri = gtk4::gio::File::for_path(file).uri();
+                        Some(gdk::ContentProvider::for_value(&uri.to_value()))
+                    } else {
+                        None
+                    }
+                }
+            ));
+
+            drag_source.connect_drag_begin(glib::clone!(
+                #[weak]
+                icon,
+                move |_, drag| {
+                    if let Some(gicon) = icon.gicon() {
+                        let paintable = gtk4::IconTheme::default().lookup_by_gicon(
+                            &gicon,
+                            24,
+                            1,
+                            gtk4::TextDirection::None,
+                            gtk4::IconLookupFlags::empty(),
+                        );
+                        DragIcon::set_from_paintable(drag, &paintable, 0, 0);
+                    } else {
+                        let icon_theme = gtk4::IconTheme::default();
+                        let icon = icon_theme.lookup_by_gicon(
+                            &ThemedIcon::new("text-x-generic"),
+                            24,
+                            1,
+                            gtk4::TextDirection::None,
+                            gtk4::IconLookupFlags::empty(),
+                        );
+                        DragIcon::set_from_paintable(drag, &icon, 0, 0);
+                    }
+                }
+            ));
+
+            hbox.add_controller(drag_source);
         }
     ));
 
@@ -57,11 +105,7 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
 
         let icon = hbox.first_child().and_downcast::<gtk4::Image>().unwrap();
         let label = hbox.last_child().and_downcast::<gtk4::Label>().unwrap();
-        let obj = item
-            .item()
-            .unwrap()
-            .downcast::<gtk4::StringObject>()
-            .unwrap();
+        let obj = item.item().unwrap().downcast::<gtk4::StringObject>().unwrap();
 
         let file = gtk4::gio::File::for_path(&obj.string());
         if let Ok(info) = file.query_info(
@@ -79,11 +123,7 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
     });
 
     let list_view = ListView::new(Some(files_selection.clone()), Some(factory));
-    let scroll = ScrolledWindow::builder()
-        .child(&list_view)
-        .vexpand(true)
-        .hexpand(true)
-        .build();
+    let scroll = ScrolledWindow::builder().child(&list_view).vexpand(true).hexpand(true).build();
 
     (scroll, files_list, list_view)
 }
