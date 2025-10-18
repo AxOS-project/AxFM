@@ -7,6 +7,7 @@ use gtk4::{
 };
 use gtk4::{gdk, glib};
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 
 pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, StringList, ListView) {
@@ -36,8 +37,8 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
                 item,
                 move |_, _, _| {
                     if let Some(obj) = item.item() {
-                        let file_name = obj.downcast_ref::<gtk4::StringObject>().unwrap().string();
-                        fmstate.borrow_mut().hovered_file = Some(file_name);
+                        let file_path = obj.downcast_ref::<gtk4::StringObject>().unwrap().string();
+                        fmstate.borrow_mut().hovered_file = Some(file_path);
                     }
                 }
             ));
@@ -96,7 +97,44 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
                 }
             ));
 
+            // add drop target
+            let drop_target = gtk4::DropTarget::new(String::static_type(), gdk::DragAction::COPY);
+
+            drop_target.connect_enter(glib::clone!(
+                #[weak_allow_none]
+                hbox,
+                #[weak_allow_none]
+                item,
+                move |_, _, _| {
+                    // nesting looks fire, doesn't it?
+                    if let Some(item) = item.as_ref() {
+                        if let Some(obj) = item.item() {
+                            let file_path = obj.downcast_ref::<gtk4::StringObject>().unwrap().string();
+                            if let Some(hbox) = hbox.as_ref() {
+                                if !Path::new(&file_path).is_dir() {
+                                    // remove styles if it is a file
+                                    hbox.add_css_class("remove_styles");
+                                } 
+                            } 
+                        }
+                    } 
+
+                    gdk::DragAction::COPY
+                }
+            ));
+
+            drop_target.connect_drop(glib::clone!(
+                #[weak_allow_none]
+                hbox,
+                move |_, _, _, _| {
+                    // TODO
+
+                    false
+                }
+            ));
+
             hbox.add_controller(drag_source);
+            hbox.add_controller(drop_target);
         }
     ));
 
