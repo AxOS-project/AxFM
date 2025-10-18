@@ -12,6 +12,7 @@ A super awesome file manager for AxOS built with gtk4.
    - [ ] Show hiddens
    - [ ] Properties
 - [ ] Implement proper headerbar
+- [x] Implement drag and drop
 - [ ] Customization options
    - [ ] Custom icons
 - [ ] Display layouts (how files and folders are shown)
