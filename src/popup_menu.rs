@@ -11,29 +11,32 @@ use std::rc::Rc;
 pub fn get_empty_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmState>>) -> Popover {
     let popover = Popover::new();
     popover.set_parent(content_area);
+
     let vbox = GtkBox::new(Orientation::Vertical, 0);
 
     let new_folder = Button::with_label("New Folder");
     let open_terminal = Button::with_label("Open Terminal Here");
 
-    new_folder.connect_clicked(|_| {
+    new_folder.connect_clicked(glib::clone!(#[weak] popover, move |_| {
         println!("New Folder clicked");
-    });
+        popover.popdown();
+    }));
 
-    open_terminal.connect_clicked(move |_| {
+    open_terminal.connect_clicked(glib::clone!(#[weak] popover, #[strong] fmstate, move |_| {
         let terminal_cmd = env::var("TERMINAL").unwrap_or_else(|_| "xterm".to_string());
         let path = &fmstate.borrow().current_path;
 
         if let Err(err) = Command::new(&terminal_cmd).current_dir(path).spawn() {
             eprintln!("Failed to open terminal '{}': {}", terminal_cmd, err);
         }
-    });
+
+        popover.popdown();
+    }));
 
     vbox.append(&new_folder);
     vbox.append(&open_terminal);
 
     popover.set_child(Some(&vbox));
-
     popover
 }
 
@@ -43,6 +46,7 @@ pub fn get_file_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmStat
 
     popover.connect_show(glib::clone!(
         #[strong] fmstate,
+        #[weak] files_list,
         move |popover| {
             let vbox = GtkBox::new(Orientation::Vertical, 0);  
 
@@ -55,6 +59,7 @@ pub fn get_file_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmStat
 
             open_in_terminal.connect_clicked(glib::clone!(
                 #[strong] fmstate,
+                #[weak] popover,
                 move |_| {
                     let terminal_cmd = env::var("TERMINAL").unwrap_or_else(|_| "xterm".to_string());
                     if let Some(path) = &fmstate.borrow().popup_focused_file {
@@ -62,18 +67,30 @@ pub fn get_file_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmStat
                             eprintln!("Failed to open terminal '{}': {}", terminal_cmd, err);
                         }
                     };
+
+                    popover.popdown();
                 }
             ));
 
             move_to_trash.connect_clicked(glib::clone!(
                 #[strong] fmstate,
+                #[weak] popover,
+                #[weak] files_list,
                 move |_| {
                     if let Some(path) = &fmstate.borrow().popup_focused_file {
                         let file = gio::File::for_path(path);
-                        if let Err(e) = file.trash(None::<&gio::Cancellable>) {
-                            eprintln!("Error while moving to trash: {}", e);
+                        match file.trash(None::<&gio::Cancellable>) {
+                            Ok(_) => {
+                                crate::files_panel::populate_files_list(
+                                    &files_list,
+                                    Path::new(&fmstate.borrow().current_path),
+                                );
+                            }
+                            Err(e) => eprintln!("Error while moving to trash: {}", e),
                         }
                     }
+
+                    popover.popdown();
                 }
             ));
 
