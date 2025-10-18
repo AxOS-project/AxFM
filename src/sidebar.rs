@@ -1,3 +1,4 @@
+use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{
     Box as GtkBox, ListView, Orientation, ScrolledWindow, SignalListItemFactory, SingleSelection,
@@ -5,7 +6,6 @@ use gtk4::{
 };
 use std::path::PathBuf;
 use xdg::BaseDirectories;
-use gtk4::glib;
 
 pub fn build_sidebar() -> (GtkBox, SingleSelection) {
     let sidebar_items = get_sidebar_items();
@@ -35,35 +35,43 @@ pub fn build_sidebar() -> (GtkBox, SingleSelection) {
         item.set_child(Some(&hbox));
     });
 
-    factory.connect_bind(glib::clone!(#[strong] sidebar_items, move |_, item| {
-        let hbox = item.child().and_downcast::<gtk4::Box>().unwrap();
-        let icon = hbox.first_child().and_downcast::<gtk4::Image>().unwrap();
-        let label = hbox.last_child().and_downcast::<gtk4::Label>().unwrap();
+    factory.connect_bind(glib::clone!(
+        #[strong]
+        sidebar_items,
+        move |_, item| {
+            let hbox = item.child().and_downcast::<gtk4::Box>().unwrap();
+            let icon = hbox.first_child().and_downcast::<gtk4::Image>().unwrap();
+            let label = hbox.last_child().and_downcast::<gtk4::Label>().unwrap();
 
-        let obj = item.item().unwrap().downcast::<gtk4::StringObject>().unwrap();
-        let label_text = obj.string();
-        label.set_text(&label_text);
+            let obj = item
+                .item()
+                .unwrap()
+                .downcast::<gtk4::StringObject>()
+                .unwrap();
+            let label_text = obj.string();
+            label.set_text(&label_text);
 
-        if let Some((name, path)) = sidebar_items.iter().find(|(n, _)| *n == label_text) {
-            label.set_tooltip_text(Some(&path.to_string_lossy()));
+            if let Some((name, path)) = sidebar_items.iter().find(|(n, _)| *n == label_text) {
+                label.set_tooltip_text(Some(&path.to_string_lossy()));
 
-            // Choose an icon per item
-            let icon_name = match *name {
-                "Home" => "user-home",
-                "Documents" => "folder-documents",
-                "Downloads" => "folder-download",
-                "Music" => "folder-music",
-                "Pictures" => "folder-pictures",
-                "Videos" => "folder-videos",
-                "Trash" => "user-trash",
-                _ => "folder",
-            };
-            icon.set_icon_name(Some(icon_name));
-        } else {
-            label.set_tooltip_text(None);
-            icon.set_icon_name(Some("folder"));
+                // Choose an icon per item
+                let icon_name = match *name {
+                    "Home" => "user-home",
+                    "Documents" => "folder-documents",
+                    "Downloads" => "folder-download",
+                    "Music" => "folder-music",
+                    "Pictures" => "folder-pictures",
+                    "Videos" => "folder-videos",
+                    "Trash" => "user-trash",
+                    _ => "folder",
+                };
+                icon.set_icon_name(Some(icon_name));
+            } else {
+                label.set_tooltip_text(None);
+                icon.set_icon_name(Some("folder"));
+            }
         }
-    }));
+    ));
 
     let list_view = ListView::new(Some(sidebar_selection.clone()), Some(factory));
     let scroll = ScrolledWindow::builder()

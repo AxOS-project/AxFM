@@ -1,8 +1,10 @@
+use gtk4::glib::GString;
 use std::path::PathBuf;
 
 pub struct FmState {
     pub current_path: PathBuf,
     pub on_path_changed: Vec<Box<dyn Fn(&PathBuf)>>,
+    pub hovered_file: Option<GString>,
 }
 
 impl FmState {
@@ -10,6 +12,7 @@ impl FmState {
         Self {
             current_path,
             on_path_changed: Vec::new(),
+            hovered_file: None,
         }
     }
 

@@ -1,14 +1,14 @@
 mod files_panel;
 mod headerbar;
 mod pathbar;
+mod popup_menu;
 mod sidebar;
 mod state;
 mod style;
-mod popup_menu;
 
 use gtk4::glib;
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Box as GtkBox, Orientation, Paned, GestureClick};
+use gtk4::{Application, ApplicationWindow, Box as GtkBox, GestureClick, Orientation, Paned};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -39,15 +39,16 @@ fn build_fm(app: &Application) {
 
     let (sidebar_box, sidebar_selection) = sidebar::build_sidebar();
     let path_bar = pathbar::build_pathbar(&mut fmstate.borrow_mut());
-    let (files_scroll, files_list, list_view) = files_panel::build_files_panel();
+    let (files_scroll, files_list, list_view) = files_panel::build_files_panel(fmstate.clone());
 
     // right click menus
     let empty_area_menu = popup_menu::get_empty_right_click(&content_area);
+    let file_area_menu = popup_menu::get_file_right_click(&content_area);
 
     populate_files_list(&files_list, &home_path);
 
     sidebar_selection.connect_selected_notify(glib::clone!(
-        #[strong]
+        #[weak]
         files_list,
         #[strong]
         fmstate,
@@ -101,7 +102,7 @@ fn build_fm(app: &Application) {
     list_view.connect_activate(glib::clone!(
         #[strong]
         fmstate,
-        #[strong]
+        #[weak]
         files_list,
         move |lv, position| {
             if let Some(obj) = lv.model().and_then(|m| m.item(position)) {
@@ -117,21 +118,35 @@ fn build_fm(app: &Application) {
     ));
 
     // controllers
-    let empty_right_click = GestureClick::new();
-    empty_right_click.set_button(3);
+    let right_click = GestureClick::new();
+    right_click.set_button(3);
 
-    empty_right_click.connect_released(glib::clone!(#[weak] empty_area_menu, move |_, _, x, y| {
-        let rect = gtk4::gdk::Rectangle::new(x as i32, y as i32, 1, 1);
-        empty_area_menu.set_pointing_to(Some(&rect));
-        empty_area_menu.popup()
-    }));
+    right_click.connect_released(glib::clone!(
+        #[strong]
+        fmstate,
+        #[weak]
+        empty_area_menu,
+        #[weak]
+        file_area_menu,
+        move |_, _, x, y| {
+            let click_rect = gtk4::gdk::Rectangle::new(x as i32, y as i32, 1, 1);
+
+            if fmstate.borrow().hovered_file.is_some() {
+                file_area_menu.set_pointing_to(Some(&click_rect));
+                file_area_menu.popup();
+            } else {
+                empty_area_menu.set_pointing_to(Some(&click_rect));
+                empty_area_menu.popup();
+            }
+        }
+    ));
 
     // content area
     content_area.append(&path_bar);
     content_area.append(&files_scroll);
 
     // setup controllers
-    content_area.add_controller(empty_right_click);
+    content_area.add_controller(right_click);
 
     let paned = Paned::new(Orientation::Horizontal);
     paned.set_start_child(Some(&sidebar_box));
