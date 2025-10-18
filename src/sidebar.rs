@@ -81,9 +81,11 @@ pub fn build_sidebar(
                                 ) {
                                     Ok(_) => {
                                         if let Some(files_list) = &files_list {
+                                            let fmstate_ref = fmstate.borrow();
                                             crate::files_panel::populate_files_list(
                                                 files_list,
-                                                Path::new(&fmstate.borrow().current_path),
+                                                Path::new(&fmstate_ref.current_path),
+                                                &fmstate_ref.settings.show_hidden,
                                             );
                                         }
                                     }

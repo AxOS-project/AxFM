@@ -1,9 +1,11 @@
+use crate::utils::FMSettings;
 use gtk4::glib::GString;
 use std::path::PathBuf;
 
 pub struct FmState {
     pub current_path: PathBuf,
     pub on_path_changed: Vec<Box<dyn Fn(&PathBuf)>>,
+    pub settings: FMSettings,
     pub hovered_file: Option<GString>,
     pub popup_focused_file: Option<GString>,
 }
@@ -13,6 +15,7 @@ impl FmState {
         Self {
             current_path,
             on_path_changed: Vec::new(),
+            settings: FMSettings::new(),
             hovered_file: None,
             popup_focused_file: None,
         }

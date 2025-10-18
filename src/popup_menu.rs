@@ -102,9 +102,11 @@ pub fn get_file_right_click(
                         let file = gio::File::for_path(path);
                         match file.trash(None::<&gio::Cancellable>) {
                             Ok(_) => {
+                                let fmstate_ref = fmstate.borrow();
                                 crate::files_panel::populate_files_list(
                                     &files_list,
-                                    Path::new(&fmstate.borrow().current_path),
+                                    Path::new(&fmstate_ref.current_path),
+                                    &fmstate_ref.settings.show_hidden,
                                 );
                             }
                             Err(e) => eprintln!("Error while moving to trash: {}", e),

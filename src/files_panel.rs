@@ -162,9 +162,11 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
                                 ) {
                                     Ok(_) => {
                                         if let Some(files_list) = &files_list {
+                                            let fmstate_ref = fmstate.borrow();
                                             populate_files_list(
                                                 files_list,
-                                                Path::new(&fmstate.borrow().current_path),
+                                                Path::new(&fmstate_ref.current_path),
+                                                &fmstate_ref.settings.show_hidden,
                                             );
                                         }
                                     }
@@ -199,12 +201,23 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
     (scroll, files_list, list_view)
 }
 
-pub fn populate_files_list(files_list: &gtk4::StringList, path: &std::path::Path) {
+pub fn populate_files_list(
+    files_list: &gtk4::StringList,
+    path: &std::path::Path,
+    show_hidden: &bool,
+) {
     while files_list.n_items() > 0 {
         files_list.remove(0);
     }
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries.flatten() {
+            let file_name = entry.file_name();
+            let file_name_str = file_name.to_string_lossy();
+
+            if !show_hidden && file_name_str.starts_with('.') {
+                continue;
+            }
+
             files_list.append(&entry.path().to_string_lossy());
         }
     }

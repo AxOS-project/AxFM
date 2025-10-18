@@ -13,6 +13,7 @@ use gtk4::{Application, ApplicationWindow, Box as GtkBox, GestureClick, Orientat
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use gtk4::gio::SimpleAction;
 
 const APP_ID: &str = "org.filemanager.axfm";
 
@@ -38,6 +39,17 @@ fn build_fm(app: &Application) {
     let home_path = dirs::home_dir().unwrap_or(PathBuf::from("/")).join("");
     let fmstate = Rc::new(RefCell::new(state::FmState::new(home_path.clone())));
 
+    // TODO: Move it to its own module
+    let initial = fmstate.borrow().settings.show_hidden;
+    let show_hidden_action = SimpleAction::new_stateful("show_hidden", None, &initial.into());
+
+    show_hidden_action.connect_activate(glib::clone!(#[strong] fmstate, move |action, _| {
+        let current: bool = action.state().unwrap().get().unwrap();
+        action.set_state(&(!current).into());
+        fmstate.borrow_mut().settings.show_hidden = !current;
+    }));
+    window.add_action(&show_hidden_action);
+
     let (files_scroll, files_list, list_view) = files_panel::build_files_panel(fmstate.clone());
     let (sidebar_box, sidebar_selection) = sidebar::build_sidebar(fmstate.clone(), &files_list);
     let path_bar = pathbar::build_pathbar(&mut fmstate.borrow_mut());
@@ -47,7 +59,11 @@ fn build_fm(app: &Application) {
     let file_area_menu =
         popup_menu::get_file_right_click(&content_area, fmstate.clone(), &files_list);
 
-    files_panel::populate_files_list(&files_list, &home_path);
+    files_panel::populate_files_list(
+        &files_list,
+        &home_path,
+        &fmstate.borrow().settings.show_hidden,
+    );
 
     sidebar_selection.connect_selected_notify(glib::clone!(
         #[weak]
@@ -71,15 +87,13 @@ fn build_fm(app: &Application) {
             ];
 
             if let Some(path) = paths.get(idx as usize) {
-                while files_list.n_items() > 0 {
-                    files_list.remove(0);
-                }
-                if let Ok(entries) = std::fs::read_dir(path) {
-                    for entry in entries.flatten() {
-                        files_list.append(&entry.path().to_string_lossy());
-                    }
-                }
-                fmstate.borrow_mut().set_path(path.clone());
+                let mut fmstate_mut = fmstate.borrow_mut();
+                files_panel::populate_files_list(
+                    &files_list,
+                    &path,
+                    &fmstate_mut.settings.show_hidden,
+                );
+                fmstate_mut.set_path(path.clone());
             }
         }
     ));
@@ -89,19 +103,17 @@ fn build_fm(app: &Application) {
         files_list,
         #[weak]
         sidebar_selection,
+        #[strong]
+        fmstate,
         move |widget| {
             let path = PathBuf::from(widget.text());
-            if let Ok(entries) = std::fs::read_dir(path) {
-                while files_list.n_items() > 0 {
-                    files_list.remove(0);
-                }
+            files_panel::populate_files_list(
+                &files_list,
+                &path,
+                &fmstate.borrow().settings.show_hidden,
+            );
 
-                for entry in entries.flatten() {
-                    files_list.append(&entry.path().to_string_lossy());
-                }
-
-                sidebar_selection.unselect_all();
-            }
+            sidebar_selection.unselect_all();
         }
     ));
 
@@ -118,7 +130,11 @@ fn build_fm(app: &Application) {
                     obj.downcast::<gtk4::StringObject>().unwrap().string(),
                 );
                 if path.is_dir() {
-                    files_panel::populate_files_list(&files_list, &path);
+                    files_panel::populate_files_list(
+                        &files_list,
+                        &path,
+                        &fmstate.borrow().settings.show_hidden,
+                    );
                     fmstate.borrow_mut().set_path(path.join(""));
                     sidebar_selection.unselect_all();
                 }
