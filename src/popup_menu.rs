@@ -1,6 +1,6 @@
 use crate::state::FmState;
-use gtk4::glib;
-use gtk4::prelude::{BoxExt, ButtonExt, PopoverExt, WidgetExt};
+use gtk4::{glib, gio};
+use gtk4::prelude::{BoxExt, ButtonExt, PopoverExt, WidgetExt, FileExt};
 use gtk4::{Box as GtkBox, Button, Orientation, Popover};
 use std::cell::RefCell;
 use std::env;
@@ -37,7 +37,7 @@ pub fn get_empty_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmSta
     popover
 }
 
-pub fn get_file_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmState>>) -> Popover {
+pub fn get_file_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmState>>, files_list: &gtk4::StringList) -> Popover {
     let popover = Popover::new();
     popover.set_parent(content_area);
     let vbox = GtkBox::new(Orientation::Vertical, 0);
@@ -63,11 +63,28 @@ pub fn get_file_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmStat
         }
     ));
 
-    move_to_trash.connect_clicked(glib::clone!(#[strong] fmstate, move |_| {
-        if let Some(path) = &fmstate.borrow().popup_focused_file {
+    move_to_trash.connect_clicked(glib::clone!(
+        #[strong] fmstate,
+        #[weak_allow_none] files_list,
+        move |_| {
+            if let Some(path) = &fmstate.borrow().popup_focused_file {
+                let file = gio::File::for_path(path);
 
-        };
-    }));
+                match file.trash(None::<&gio::Cancellable>) {
+                    Ok(_) => {
+                        // Refresh the file list
+                        if let Some(files_list) = &files_list {
+                            crate::files_panel::populate_files_list(
+                                files_list,
+                                Path::new(&fmstate.borrow().current_path),
+                            );
+                        }
+                    }
+                    Err(e) => eprintln!("Error while moving to trash: {}", e),
+                }
+            }
+        }
+    ));
 
     if let Some(path) = &fmstate.borrow().popup_focused_file {
         // if dir, show open in terminal
