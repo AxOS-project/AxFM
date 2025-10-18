@@ -63,9 +63,11 @@ pub fn get_file_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmStat
         }
     ));
 
-    move_to_trash.connect_clicked(|_| {
-        println!("Move to Trash clicked");
-    });
+    move_to_trash.connect_clicked(glib::clone!(#[strong] fmstate, move |_| {
+        if let Some(path) = &fmstate.borrow().popup_focused_file {
+
+        };
+    }));
 
     if let Some(path) = &fmstate.borrow().popup_focused_file {
         // if dir, show open in terminal

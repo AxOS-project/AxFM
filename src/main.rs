@@ -38,9 +38,9 @@ fn build_fm(app: &Application) {
     let home_path = dirs::home_dir().unwrap_or(PathBuf::from("/")).join("");
     let fmstate = Rc::new(RefCell::new(state::FmState::new(home_path.clone())));
 
-    let (sidebar_box, sidebar_selection) = sidebar::build_sidebar();
-    let path_bar = pathbar::build_pathbar(&mut fmstate.borrow_mut());
     let (files_scroll, files_list, list_view) = files_panel::build_files_panel(fmstate.clone());
+    let (sidebar_box, sidebar_selection) = sidebar::build_sidebar(fmstate.clone(), &files_list);
+    let path_bar = pathbar::build_pathbar(&mut fmstate.borrow_mut());
 
     // right click menus
     let empty_area_menu = popup_menu::get_empty_right_click(&content_area, fmstate.clone());

@@ -4,10 +4,13 @@ use gtk4::{
     StringList,
 };
 use gtk4::{gdk, gio, glib};
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use xdg::BaseDirectories;
+use crate::state::FmState;
+use std::rc::Rc;
+use std::cell::RefCell;
 
-pub fn build_sidebar() -> (GtkBox, SingleSelection) {
+pub fn build_sidebar(fmstate: Rc<RefCell<FmState>>, files_list: &gtk4::StringList) -> (GtkBox, SingleSelection) {
     let sidebar_items = get_sidebar_items();
     let labels: Vec<&str> = sidebar_items.iter().map(|(name, _)| *name).collect();
 
@@ -17,7 +20,7 @@ pub fn build_sidebar() -> (GtkBox, SingleSelection) {
     sidebar_selection.set_autoselect(false);
 
     let factory = SignalListItemFactory::new();
-    factory.connect_setup(glib::clone!(#[strong] sidebar_items, move |_, item| {
+    factory.connect_setup(glib::clone!(#[strong] sidebar_items, #[weak] files_list, #[strong] fmstate, move |_, item| {
         let hbox = gtk4::Box::new(gtk4::Orientation::Horizontal, 6);
 
         let icon = gtk4::Image::new();
@@ -41,6 +44,10 @@ pub fn build_sidebar() -> (GtkBox, SingleSelection) {
             sidebar_items,
             #[weak_allow_none]
             label,
+            #[weak_allow_none]
+            files_list,
+            #[strong]
+            fmstate,
             move |_drop_target, value, _, _| {
                 if let Some(label) = label.as_ref() {
                     let label_text = label.text();
@@ -56,13 +63,21 @@ pub fn build_sidebar() -> (GtkBox, SingleSelection) {
                             dest_path.push(src_filename);
                             let dest_file = gio::File::for_path(&dest_path);
 
-                            if let Err(e) = src_file.move_(
+                            match src_file.move_(
                                 &dest_file,
                                 gio::FileCopyFlags::OVERWRITE,
                                 None::<&gio::Cancellable>,
                                 None::<&mut dyn FnMut(i64, i64)>,
                             ) {
-                                eprintln!("Error while moving file: {}", e);
+                                Ok(_) => {
+                                    if let Some(files_list) = &files_list {
+                                        crate::files_panel::populate_files_list(
+                                            files_list,
+                                            Path::new(&fmstate.borrow().current_path),
+                                        );
+                                    }
+                                }
+                                Err(e) => eprintln!("Error while moving file: {}", e),
                             }
                         }
                     }

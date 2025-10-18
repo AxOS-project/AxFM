@@ -106,6 +106,8 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
     factory.connect_bind(glib::clone!(
         #[weak]
         files_list,
+        #[strong]
+        fmstate,
         move |_, item| {
             let hbox = item.child().and_downcast::<gtk4::Box>().unwrap();
 
@@ -133,6 +135,7 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
             drop_target.connect_drop(glib::clone!(
                 #[weak_allow_none]
                 files_list,
+                #[strong] fmstate,
                 move |drop_target, value, _, _| {
                     if let Some(target_widget) = drop_target.widget() {
                         if let Some(target_path) =
@@ -160,7 +163,7 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
                                         if let Some(files_list) = &files_list {
                                             populate_files_list(
                                                 files_list,
-                                                Path::new(&target_path),
+                                                Path::new(&fmstate.borrow().current_path),
                                             );
                                         }
                                     }
