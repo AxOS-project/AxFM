@@ -22,13 +22,13 @@ jobs:
         pacman -Syu --noconfirm
         pacman -S --noconfirm base-devel gtk4 gtk4-layer-shell pkgconf git
 
-      - name: Setup rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy,rustfmt
+    - name: Setup rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy,rustfmt
 
-      - name: Load rust cache
-        uses: Swatinem/rust-cache@v2
+    - name: Load rust cache
+      uses: Swatinem/rust-cache@v2
 
     - uses: actions/checkout@v4
     - name: Build
