@@ -40,65 +40,56 @@ pub fn get_empty_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmSta
 pub fn get_file_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmState>>, files_list: &gtk4::StringList) -> Popover {
     let popover = Popover::new();
     popover.set_parent(content_area);
-    let vbox = GtkBox::new(Orientation::Vertical, 0);
 
-    let open_file = Button::with_label("Open File");
-    let open_in_terminal = Button::with_label("Open in Terminal");
-    let move_to_trash = Button::with_label("Move to Trash");
-
-    open_file.connect_clicked(|_| {
-        println!("Open File clicked");
-    });
-
-    open_in_terminal.connect_clicked(glib::clone!(
-        #[strong]
-        fmstate,
-        move |_| {
-            let terminal_cmd = env::var("TERMINAL").unwrap_or_else(|_| "xterm".to_string());
-            if let Some(path) = &fmstate.borrow().popup_focused_file {
-                if let Err(err) = Command::new(&terminal_cmd).current_dir(path).spawn() {
-                    eprintln!("Failed to open terminal '{}': {}", terminal_cmd, err);
-                }
-            };
-        }
-    ));
-
-    move_to_trash.connect_clicked(glib::clone!(
+    popover.connect_show(glib::clone!(
         #[strong] fmstate,
-        #[weak_allow_none] files_list,
-        move |_| {
-            if let Some(path) = &fmstate.borrow().popup_focused_file {
-                let file = gio::File::for_path(path);
+        move |popover| {
+            let vbox = GtkBox::new(Orientation::Vertical, 0);  
 
-                match file.trash(None::<&gio::Cancellable>) {
-                    Ok(_) => {
-                        // Refresh the file list
-                        if let Some(files_list) = &files_list {
-                            crate::files_panel::populate_files_list(
-                                files_list,
-                                Path::new(&fmstate.borrow().current_path),
-                            );
+            let open_file = Button::with_label("Open File");
+            let open_in_terminal = Button::with_label("Open in Terminal");
+            let move_to_trash = Button::with_label("Move to Trash");
+
+            // Reconnect handlers if needed
+            open_file.connect_clicked(|_| println!("Open File clicked"));
+
+            open_in_terminal.connect_clicked(glib::clone!(
+                #[strong] fmstate,
+                move |_| {
+                    let terminal_cmd = env::var("TERMINAL").unwrap_or_else(|_| "xterm".to_string());
+                    if let Some(path) = &fmstate.borrow().popup_focused_file {
+                        if let Err(err) = Command::new(&terminal_cmd).current_dir(path).spawn() {
+                            eprintln!("Failed to open terminal '{}': {}", terminal_cmd, err);
+                        }
+                    };
+                }
+            ));
+
+            move_to_trash.connect_clicked(glib::clone!(
+                #[strong] fmstate,
+                move |_| {
+                    if let Some(path) = &fmstate.borrow().popup_focused_file {
+                        let file = gio::File::for_path(path);
+                        if let Err(e) = file.trash(None::<&gio::Cancellable>) {
+                            eprintln!("Error while moving to trash: {}", e);
                         }
                     }
-                    Err(e) => eprintln!("Error while moving to trash: {}", e),
+                }
+            ));
+
+            if let Some(path) = &fmstate.borrow().popup_focused_file {
+                if Path::new(path).is_dir() {
+                    vbox.append(&open_in_terminal);
+                } else {
+                    vbox.append(&open_file);
                 }
             }
+
+            vbox.append(&move_to_trash);
+
+            popover.set_child(Some(&vbox));
         }
     ));
-
-    if let Some(path) = &fmstate.borrow().popup_focused_file {
-        // if dir, show open in terminal
-        // if not dir (i.e a file), then show open file
-        if Path::new(path).is_dir() {
-            vbox.append(&open_in_terminal);
-        } else {
-            vbox.append(&open_file);
-        }
-    }
-
-    vbox.append(&move_to_trash);
-
-    popover.set_child(Some(&vbox));
 
     popover
 }
