@@ -10,9 +10,6 @@ pub fn load_css() {
         .pathbar {
             margin: 5px;
         }
-        .remove_styles {
-            all: unset;
-        }
 	",
     );
 

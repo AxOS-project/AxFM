@@ -5,6 +5,7 @@ mod popup_menu;
 mod sidebar;
 mod state;
 mod style;
+mod utils;
 
 use gtk4::glib;
 use gtk4::prelude::*;
@@ -45,7 +46,7 @@ fn build_fm(app: &Application) {
     let empty_area_menu = popup_menu::get_empty_right_click(&content_area, fmstate.clone());
     let file_area_menu = popup_menu::get_file_right_click(&content_area, fmstate.clone());
 
-    populate_files_list(&files_list, &home_path);
+    files_panel::populate_files_list(&files_list, &home_path);
 
     sidebar_selection.connect_selected_notify(glib::clone!(
         #[weak]
@@ -83,8 +84,10 @@ fn build_fm(app: &Application) {
     ));
 
     path_bar.connect_activate(glib::clone!(
-        #[strong]
+        #[weak]
         files_list,
+        #[weak]
+        sidebar_selection,
         move |widget| {
             let path = PathBuf::from(widget.text());
             if let Ok(entries) = std::fs::read_dir(path) {
@@ -95,6 +98,8 @@ fn build_fm(app: &Application) {
                 for entry in entries.flatten() {
                     files_list.append(&entry.path().to_string_lossy());
                 }
+
+                sidebar_selection.unselect_all();
             }
         }
     ));
@@ -104,14 +109,17 @@ fn build_fm(app: &Application) {
         fmstate,
         #[weak]
         files_list,
+        #[weak]
+        sidebar_selection,
         move |lv, position| {
             if let Some(obj) = lv.model().and_then(|m| m.item(position)) {
                 let path = std::path::PathBuf::from(
                     obj.downcast::<gtk4::StringObject>().unwrap().string(),
                 );
                 if path.is_dir() {
-                    populate_files_list(&files_list, &path);
+                    files_panel::populate_files_list(&files_list, &path);
                     fmstate.borrow_mut().set_path(path.join(""));
+                    sidebar_selection.unselect_all();
                 }
             }
         }
@@ -175,15 +183,4 @@ fn build_fm(app: &Application) {
 
     window.set_child(Some(&paned));
     window.present();
-}
-
-fn populate_files_list(files_list: &gtk4::StringList, path: &std::path::Path) {
-    while files_list.n_items() > 0 {
-        files_list.remove(0);
-    }
-    if let Ok(entries) = std::fs::read_dir(path) {
-        for entry in entries.flatten() {
-            files_list.append(&entry.path().to_string_lossy());
-        }
-    }
 }
