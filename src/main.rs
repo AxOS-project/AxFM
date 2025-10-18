@@ -144,9 +144,13 @@ fn build_fm(app: &Application) {
                 file_area_menu.set_pointing_to(Some(&click_rect));
                 file_area_menu.popup();
 
-                file_area_menu.connect_closed(glib::clone!(#[strong] fmstate, move |_| {
-                    fmstate.borrow_mut().popup_focused_file = None;
-                }));
+                file_area_menu.connect_closed(glib::clone!(
+                    #[strong]
+                    fmstate,
+                    move |_| {
+                        fmstate.borrow_mut().popup_focused_file = None;
+                    }
+                ));
             } else {
                 empty_area_menu.set_pointing_to(Some(&click_rect));
                 empty_area_menu.popup();

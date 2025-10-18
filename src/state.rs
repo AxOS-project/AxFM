@@ -14,7 +14,7 @@ impl FmState {
             current_path,
             on_path_changed: Vec::new(),
             hovered_file: None,
-            popup_focused_file: None
+            popup_focused_file: None,
         }
     }
 
