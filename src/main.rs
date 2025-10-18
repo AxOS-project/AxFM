@@ -44,7 +44,8 @@ fn build_fm(app: &Application) {
 
     // right click menus
     let empty_area_menu = popup_menu::get_empty_right_click(&content_area, fmstate.clone());
-    let file_area_menu = popup_menu::get_file_right_click(&content_area, fmstate.clone(), &files_list);
+    let file_area_menu =
+        popup_menu::get_file_right_click(&content_area, fmstate.clone(), &files_list);
 
     files_panel::populate_files_list(&files_list, &home_path);
 

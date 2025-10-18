@@ -135,7 +135,8 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
             drop_target.connect_drop(glib::clone!(
                 #[weak_allow_none]
                 files_list,
-                #[strong] fmstate,
+                #[strong]
+                fmstate,
                 move |drop_target, value, _, _| {
                     if let Some(target_widget) = drop_target.widget() {
                         if let Some(target_path) =

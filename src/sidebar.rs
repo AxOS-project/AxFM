@@ -1,16 +1,19 @@
+use crate::state::FmState;
 use gtk4::prelude::*;
 use gtk4::{
     Box as GtkBox, ListView, Orientation, ScrolledWindow, SignalListItemFactory, SingleSelection,
     StringList,
 };
 use gtk4::{gdk, gio, glib};
-use std::path::{PathBuf, Path};
-use xdg::BaseDirectories;
-use crate::state::FmState;
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
+use xdg::BaseDirectories;
 
-pub fn build_sidebar(fmstate: Rc<RefCell<FmState>>, files_list: &gtk4::StringList) -> (GtkBox, SingleSelection) {
+pub fn build_sidebar(
+    fmstate: Rc<RefCell<FmState>>,
+    files_list: &gtk4::StringList,
+) -> (GtkBox, SingleSelection) {
     let sidebar_items = get_sidebar_items();
     let labels: Vec<&str> = sidebar_items.iter().map(|(name, _)| *name).collect();
 
@@ -20,75 +23,83 @@ pub fn build_sidebar(fmstate: Rc<RefCell<FmState>>, files_list: &gtk4::StringLis
     sidebar_selection.set_autoselect(false);
 
     let factory = SignalListItemFactory::new();
-    factory.connect_setup(glib::clone!(#[strong] sidebar_items, #[weak] files_list, #[strong] fmstate, move |_, item| {
-        let hbox = gtk4::Box::new(gtk4::Orientation::Horizontal, 6);
+    factory.connect_setup(glib::clone!(
+        #[strong]
+        sidebar_items,
+        #[weak]
+        files_list,
+        #[strong]
+        fmstate,
+        move |_, item| {
+            let hbox = gtk4::Box::new(gtk4::Orientation::Horizontal, 6);
 
-        let icon = gtk4::Image::new();
-        icon.set_pixel_size(24);
+            let icon = gtk4::Image::new();
+            icon.set_pixel_size(24);
 
-        let label = gtk4::Label::new(None);
-        label.set_xalign(0.0);
+            let label = gtk4::Label::new(None);
+            label.set_xalign(0.0);
 
-        hbox.append(&icon);
-        hbox.append(&label);
+            hbox.append(&icon);
+            hbox.append(&label);
 
-        hbox.set_margin_start(6);
-        hbox.set_margin_end(6);
-        hbox.set_margin_top(4);
-        hbox.set_margin_bottom(4);
+            hbox.set_margin_start(6);
+            hbox.set_margin_end(6);
+            hbox.set_margin_top(4);
+            hbox.set_margin_bottom(4);
 
-        // add drop target
-        let drop_target = gtk4::DropTarget::new(String::static_type(), gdk::DragAction::COPY);
-        drop_target.connect_drop(glib::clone!(
-            #[strong]
-            sidebar_items,
-            #[weak_allow_none]
-            label,
-            #[weak_allow_none]
-            files_list,
-            #[strong]
-            fmstate,
-            move |_drop_target, value, _, _| {
-                if let Some(label) = label.as_ref() {
-                    let label_text = label.text();
+            // add drop target
+            let drop_target = gtk4::DropTarget::new(String::static_type(), gdk::DragAction::COPY);
+            drop_target.connect_drop(glib::clone!(
+                #[strong]
+                sidebar_items,
+                #[weak_allow_none]
+                label,
+                #[weak_allow_none]
+                files_list,
+                #[strong]
+                fmstate,
+                move |_drop_target, value, _, _| {
+                    if let Some(label) = label.as_ref() {
+                        let label_text = label.text();
 
-                    if let Some((_, target_path)) =
-                        sidebar_items.iter().find(|(n, _)| **n == label_text)
-                    {
-                        if let Ok(uri) = value.get::<glib::GString>() {
-                            let src_file = gio::File::for_uri(&uri);
-                            let src_filename =
-                                src_file.basename().unwrap_or_else(|| "unknown".into());
-                            let mut dest_path = PathBuf::from(target_path);
-                            dest_path.push(src_filename);
-                            let dest_file = gio::File::for_path(&dest_path);
+                        if let Some((_, target_path)) =
+                            sidebar_items.iter().find(|(n, _)| **n == label_text)
+                        {
+                            if let Ok(uri) = value.get::<glib::GString>() {
+                                let src_file = gio::File::for_uri(&uri);
+                                let src_filename =
+                                    src_file.basename().unwrap_or_else(|| "unknown".into());
+                                let mut dest_path = PathBuf::from(target_path);
+                                dest_path.push(src_filename);
+                                let dest_file = gio::File::for_path(&dest_path);
 
-                            match src_file.move_(
-                                &dest_file,
-                                gio::FileCopyFlags::OVERWRITE,
-                                None::<&gio::Cancellable>,
-                                None::<&mut dyn FnMut(i64, i64)>,
-                            ) {
-                                Ok(_) => {
-                                    if let Some(files_list) = &files_list {
-                                        crate::files_panel::populate_files_list(
-                                            files_list,
-                                            Path::new(&fmstate.borrow().current_path),
-                                        );
+                                match src_file.move_(
+                                    &dest_file,
+                                    gio::FileCopyFlags::OVERWRITE,
+                                    None::<&gio::Cancellable>,
+                                    None::<&mut dyn FnMut(i64, i64)>,
+                                ) {
+                                    Ok(_) => {
+                                        if let Some(files_list) = &files_list {
+                                            crate::files_panel::populate_files_list(
+                                                files_list,
+                                                Path::new(&fmstate.borrow().current_path),
+                                            );
+                                        }
                                     }
+                                    Err(e) => eprintln!("Error while moving file: {}", e),
                                 }
-                                Err(e) => eprintln!("Error while moving file: {}", e),
                             }
                         }
                     }
+                    true
                 }
-                true
-            }
-        ));
-        hbox.add_controller(drop_target);
+            ));
+            hbox.add_controller(drop_target);
 
-        item.set_child(Some(&hbox));
-    }));
+            item.set_child(Some(&hbox));
+        }
+    ));
 
     factory.connect_bind(glib::clone!(
         #[strong]
