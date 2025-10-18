@@ -42,8 +42,8 @@ fn build_fm(app: &Application) {
     let (files_scroll, files_list, list_view) = files_panel::build_files_panel(fmstate.clone());
 
     // right click menus
-    let empty_area_menu = popup_menu::get_empty_right_click(&content_area);
-    let file_area_menu = popup_menu::get_file_right_click(&content_area);
+    let empty_area_menu = popup_menu::get_empty_right_click(&content_area, fmstate.clone());
+    let file_area_menu = popup_menu::get_file_right_click(&content_area, fmstate.clone());
 
     populate_files_list(&files_list, &home_path);
 
@@ -131,9 +131,22 @@ fn build_fm(app: &Application) {
         move |_, _, x, y| {
             let click_rect = gtk4::gdk::Rectangle::new(x as i32, y as i32, 1, 1);
 
-            if fmstate.borrow().hovered_file.is_some() {
+            let mut fmstate_mut = fmstate.borrow_mut();
+            let hovered_file_opt = fmstate_mut.hovered_file.clone();
+
+            if let Some(file_name) = hovered_file_opt {
+                fmstate_mut.popup_focused_file = Some(file_name);
+
+                // immedeatly drop to prevent issues
+                // trust me, it will panic without this.
+                drop(fmstate_mut);
+
                 file_area_menu.set_pointing_to(Some(&click_rect));
                 file_area_menu.popup();
+
+                file_area_menu.connect_closed(glib::clone!(#[strong] fmstate, move |_| {
+                    fmstate.borrow_mut().popup_focused_file = None;
+                }));
             } else {
                 empty_area_menu.set_pointing_to(Some(&click_rect));
                 empty_area_menu.popup();

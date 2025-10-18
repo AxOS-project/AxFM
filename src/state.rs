@@ -5,6 +5,7 @@ pub struct FmState {
     pub current_path: PathBuf,
     pub on_path_changed: Vec<Box<dyn Fn(&PathBuf)>>,
     pub hovered_file: Option<GString>,
+    pub popup_focused_file: Option<GString>,
 }
 
 impl FmState {
@@ -13,6 +14,7 @@ impl FmState {
             current_path,
             on_path_changed: Vec::new(),
             hovered_file: None,
+            popup_focused_file: None
         }
     }
 

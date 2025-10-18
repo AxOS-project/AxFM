@@ -6,7 +6,7 @@ A super awesome file manager for AxOS built with gtk4.
 
 - [ ] Implement right click functions
    - [ ] New things
-   - [ ] Open in terminal
+   - [x] Open in terminal
    - [ ] Copy/Cut/Paste/Rename... the usual
    - [ ] Sort
    - [ ] Show hiddens
