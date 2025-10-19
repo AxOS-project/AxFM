@@ -52,7 +52,7 @@ pub fn implement_actions(window: &ApplicationWindow, app: &Application, fmstate:
     window.add_action(&show_hidden_action);
 
     let new_window_action = SimpleAction::new("open_new_window", None);
-    new_window_action.connect_activate(glib::clone!(#[weak] window, #[weak] app, move |_, _| {
+    new_window_action.connect_activate(glib::clone!(#[weak] app, move |_, _| {
         crate::build_fm(&app);
     }));
     window.add_action(&new_window_action);

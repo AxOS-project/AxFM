@@ -9,7 +9,7 @@ A super awesome file manager for AxOS built with gtk4.
    - [x] Open in terminal
    - [ ] Copy/Cut/Paste/Rename... the usual
    - [ ] Sort
-   - [ ] Show hiddens
+   - [x] Show hiddens
    - [ ] Properties
 - [ ] Implement proper headerbar
 - [x] Implement drag and drop

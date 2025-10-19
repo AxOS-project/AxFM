@@ -127,13 +127,18 @@ fn build_fm(app: &Application) {
                     gio::File::for_uri(&file_str)
                 };
 
-                files_panel::populate_files_list(
-                    &files_list,
-                    &file,
-                    &fmstate.borrow().settings.show_hidden,
-                );
-                fmstate.borrow_mut().set_path(file.clone());
-                sidebar_selection.unselect_all();
+                let file_type = file
+                    .query_file_type(gio::FileQueryInfoFlags::NONE, None::<&gio::Cancellable>);
+
+                if file_type == gio::FileType::Directory {
+                    files_panel::populate_files_list(
+                        &files_list,
+                        &file,
+                        &fmstate.borrow().settings.show_hidden,
+                    );
+                    fmstate.borrow_mut().set_path(file.clone());
+                    sidebar_selection.unselect_all();
+                }
             }
         }
     ));
