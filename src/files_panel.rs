@@ -48,10 +48,9 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
                 #[strong]
                 fmstate,
                 move |_| {
-                    let fmstate = fmstate.clone();
-                    glib::idle_add_local_once(move || {
-                        fmstate.borrow_mut().hovered_file = None;
-                    });
+                    if let Ok(mut fmstate_mut) = fmstate.try_borrow_mut() {
+                        fmstate_mut.hovered_file = None;
+                    }
                 }
             ));
 
