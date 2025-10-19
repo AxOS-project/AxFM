@@ -4,8 +4,6 @@ pub struct FMSettings {
 
 impl FMSettings {
     pub fn new() -> Self {
-        Self {
-            show_hidden: false,
-        }
+        Self { show_hidden: false }
     }
 }

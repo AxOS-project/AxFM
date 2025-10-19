@@ -1,3 +1,4 @@
+use crate::glib::UserDirectory;
 use crate::state::FmState;
 use gtk4::prelude::*;
 use gtk4::{
@@ -6,9 +7,7 @@ use gtk4::{
 };
 use gtk4::{gdk, gio, glib};
 use std::cell::RefCell;
-use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use xdg::BaseDirectories;
 
 pub fn build_sidebar(
     fmstate: Rc<RefCell<FmState>>,
@@ -69,9 +68,7 @@ pub fn build_sidebar(
                                 let src_file = gio::File::for_uri(&uri);
                                 let src_filename =
                                     src_file.basename().unwrap_or_else(|| "unknown".into());
-                                let mut dest_path = PathBuf::from(target_path);
-                                dest_path.push(src_filename);
-                                let dest_file = gio::File::for_path(&dest_path);
+                                let dest_file = target_path.child(&src_filename);
 
                                 match src_file.move_(
                                     &dest_file,
@@ -84,7 +81,7 @@ pub fn build_sidebar(
                                             let fmstate_ref = fmstate.borrow();
                                             crate::files_panel::populate_files_list(
                                                 files_list,
-                                                Path::new(&fmstate_ref.current_path),
+                                                &fmstate_ref.current_path,
                                                 &fmstate_ref.settings.show_hidden,
                                             );
                                         }
@@ -115,8 +112,12 @@ pub fn build_sidebar(
             let label_text = obj.string();
             label.set_text(&label_text);
 
-            if let Some((name, path)) = sidebar_items.iter().find(|(n, _)| *n == label_text) {
-                label.set_tooltip_text(Some(&path.to_string_lossy()));
+            if let Some((name, file)) = sidebar_items.iter().find(|(n, _)| *n == label_text) {
+                let tooltip = file
+                    .path()
+                    .map(|p| p.display().to_string()) // local path
+                    .unwrap_or_else(|| file.uri().to_string()); // virtual file
+                label.set_tooltip_text(Some(&tooltip));
 
                 // Choose an icon per item
                 let icon_name = match *name {
@@ -171,17 +172,20 @@ pub fn build_sidebar(
     (sidebar_box, sidebar_selection)
 }
 
-fn get_sidebar_items() -> Vec<(&'static str, PathBuf)> {
-    let xdg_dirs = BaseDirectories::with_prefix("user-dirs");
-    let home = dirs::home_dir().unwrap_or(PathBuf::from("/"));
+pub fn get_sidebar_items() -> Vec<(&'static str, gio::File)> {
+    let home = gio::File::for_path(glib::home_dir());
+    let dirs = |d: UserDirectory| {
+        let path = glib::user_special_dir(d).unwrap();
+        gio::File::for_path(path)
+    };
 
     vec![
         ("Home", home.clone()),
-        ("Documents", xdg_dirs.find_data_file("Documents").unwrap_or(home.join("Documents"))),
-        ("Downloads", xdg_dirs.find_data_file("Downloads").unwrap_or(home.join("Downloads"))),
-        ("Music", xdg_dirs.find_data_file("Music").unwrap_or(home.join("Music"))),
-        ("Pictures", xdg_dirs.find_data_file("Pictures").unwrap_or(home.join("Pictures"))),
-        ("Videos", xdg_dirs.find_data_file("Videos").unwrap_or(home.join("Videos"))),
-        ("Trash", home.join(".local/share/Trash/files")),
+        ("Documents", dirs(UserDirectory::Documents)),
+        ("Downloads", dirs(UserDirectory::Downloads)),
+        ("Music", dirs(UserDirectory::Music)),
+        ("Pictures", dirs(UserDirectory::Pictures)),
+        ("Videos", dirs(UserDirectory::Videos)),
+        ("Trash", gio::File::for_uri("trash:///")),
     ]
 }

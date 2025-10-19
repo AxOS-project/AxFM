@@ -48,7 +48,10 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
                 #[strong]
                 fmstate,
                 move |_| {
-                    fmstate.borrow_mut().hovered_file = None;
+                    let fmstate = fmstate.clone();
+                    glib::idle_add_local_once(move || {
+                        fmstate.borrow_mut().hovered_file = None;
+                    });
                 }
             ));
 
@@ -115,7 +118,13 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
             let label = hbox.last_child().and_downcast::<gtk4::Label>().unwrap();
             let obj = item.item().unwrap().downcast::<gtk4::StringObject>().unwrap();
 
-            let file = gtk4::gio::File::for_path(&obj.string());
+            let file_str = obj.string();
+            let file = if std::path::Path::new(&file_str).exists() {
+                gio::File::for_path(&file_str)
+            } else {
+                gio::File::for_uri(&file_str)
+            };
+
             if let Ok(info) = file.query_info(
                 "standard::icon,standard::display-name,standard::type",
                 gtk4::gio::FileQueryInfoFlags::NONE,
@@ -165,7 +174,7 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
                                             let fmstate_ref = fmstate.borrow();
                                             populate_files_list(
                                                 files_list,
-                                                Path::new(&fmstate_ref.current_path),
+                                                &fmstate_ref.current_path,
                                                 &fmstate_ref.settings.show_hidden,
                                             );
                                         }
@@ -201,24 +210,29 @@ pub fn build_files_panel(fmstate: Rc<RefCell<FmState>>) -> (ScrolledWindow, Stri
     (scroll, files_list, list_view)
 }
 
-pub fn populate_files_list(
-    files_list: &gtk4::StringList,
-    path: &std::path::Path,
-    show_hidden: &bool,
-) {
+pub fn populate_files_list(files_list: &gtk4::StringList, dir: &gio::File, show_hidden: &bool) {
     while files_list.n_items() > 0 {
         files_list.remove(0);
     }
-    if let Ok(entries) = std::fs::read_dir(path) {
-        for entry in entries.flatten() {
-            let file_name = entry.file_name();
-            let file_name_str = file_name.to_string_lossy();
 
-            if !show_hidden && file_name_str.starts_with('.') {
+    if let Ok(enumerator) =
+        dir.enumerate_children("*", gio::FileQueryInfoFlags::NONE, None::<&gio::Cancellable>)
+    {
+        while let Some(info) = enumerator.next_file(None::<&gio::Cancellable>).unwrap_or(None) {
+            let name = info.display_name();
+
+            if !show_hidden && name.starts_with('.') {
                 continue;
             }
 
-            files_list.append(&entry.path().to_string_lossy());
+            let child_file = dir.child(&name);
+
+            let display = child_file
+                .path()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| child_file.uri().to_string());
+
+            files_list.append(&display);
         }
     }
 }

@@ -7,13 +7,12 @@ mod state;
 mod style;
 mod utils;
 
-use gtk4::glib;
+use gtk4::gio::SimpleAction;
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, Box as GtkBox, GestureClick, Orientation, Paned};
+use gtk4::{gio, glib};
 use std::cell::RefCell;
-use std::path::PathBuf;
 use std::rc::Rc;
-use gtk4::gio::SimpleAction;
 
 const APP_ID: &str = "org.filemanager.axfm";
 
@@ -36,18 +35,22 @@ fn build_fm(app: &Application) {
     // where files will be shown
     let content_area = GtkBox::new(Orientation::Vertical, 0);
 
-    let home_path = dirs::home_dir().unwrap_or(PathBuf::from("/")).join("");
+    let home_path = gio::File::for_path(glib::home_dir());
     let fmstate = Rc::new(RefCell::new(state::FmState::new(home_path.clone())));
 
     // TODO: Move it to its own module
     let initial = fmstate.borrow().settings.show_hidden;
     let show_hidden_action = SimpleAction::new_stateful("show_hidden", None, &initial.into());
 
-    show_hidden_action.connect_activate(glib::clone!(#[strong] fmstate, move |action, _| {
-        let current: bool = action.state().unwrap().get().unwrap();
-        action.set_state(&(!current).into());
-        fmstate.borrow_mut().settings.show_hidden = !current;
-    }));
+    show_hidden_action.connect_activate(glib::clone!(
+        #[strong]
+        fmstate,
+        move |action, _| {
+            let current: bool = action.state().unwrap().get().unwrap();
+            action.set_state(&(!current).into());
+            fmstate.borrow_mut().settings.show_hidden = !current;
+        }
+    ));
     window.add_action(&show_hidden_action);
 
     let (files_scroll, files_list, list_view) = files_panel::build_files_panel(fmstate.clone());
@@ -76,24 +79,17 @@ fn build_fm(app: &Application) {
                 return;
             }
 
-            let paths = [
-                dirs::home_dir().unwrap().join(""),
-                dirs::home_dir().unwrap().join("Documents/"),
-                dirs::home_dir().unwrap().join("Downloads/"),
-                dirs::home_dir().unwrap().join("Music/"),
-                dirs::home_dir().unwrap().join("Pictures/"),
-                dirs::home_dir().unwrap().join("Videos/"),
-                dirs::home_dir().unwrap().join(".local/share/Trash/files/"),
-            ];
+            let sidebar_items = sidebar::get_sidebar_items();
 
-            if let Some(path) = paths.get(idx as usize) {
+            if let Some((_, file)) = sidebar_items.get(idx as usize) {
                 let mut fmstate_mut = fmstate.borrow_mut();
+
                 files_panel::populate_files_list(
                     &files_list,
-                    &path,
+                    &file,
                     &fmstate_mut.settings.show_hidden,
                 );
-                fmstate_mut.set_path(path.clone());
+                fmstate_mut.set_path(file.clone());
             }
         }
     ));
@@ -106,13 +102,21 @@ fn build_fm(app: &Application) {
         #[strong]
         fmstate,
         move |widget| {
-            let path = PathBuf::from(widget.text());
+            let text = widget.text();
+
+            let file = if std::path::Path::new(&text).exists() {
+                gio::File::for_path(&text)
+            } else {
+                gio::File::for_uri(&text)
+            };
+
             files_panel::populate_files_list(
                 &files_list,
-                &path,
+                &file,
                 &fmstate.borrow().settings.show_hidden,
             );
 
+            fmstate.borrow_mut().set_path(file);
             sidebar_selection.unselect_all();
         }
     ));
@@ -126,18 +130,23 @@ fn build_fm(app: &Application) {
         sidebar_selection,
         move |lv, position| {
             if let Some(obj) = lv.model().and_then(|m| m.item(position)) {
-                let path = std::path::PathBuf::from(
-                    obj.downcast::<gtk4::StringObject>().unwrap().string(),
+                let string_obj = obj.downcast::<gtk4::StringObject>().unwrap();
+                let file_str = string_obj.string();
+
+                // Try local path first, otherwise fallback to URI
+                let file = if std::path::Path::new(&file_str).exists() {
+                    gio::File::for_path(&file_str)
+                } else {
+                    gio::File::for_uri(&file_str)
+                };
+
+                files_panel::populate_files_list(
+                    &files_list,
+                    &file,
+                    &fmstate.borrow().settings.show_hidden,
                 );
-                if path.is_dir() {
-                    files_panel::populate_files_list(
-                        &files_list,
-                        &path,
-                        &fmstate.borrow().settings.show_hidden,
-                    );
-                    fmstate.borrow_mut().set_path(path.join(""));
-                    sidebar_selection.unselect_all();
-                }
+                fmstate.borrow_mut().set_path(file.clone());
+                sidebar_selection.unselect_all();
             }
         }
     ));

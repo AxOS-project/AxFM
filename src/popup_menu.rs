@@ -33,10 +33,17 @@ pub fn get_empty_right_click(content_area: &gtk4::Box, fmstate: Rc<RefCell<FmSta
         fmstate,
         move |_| {
             let terminal_cmd = env::var("TERMINAL").unwrap_or_else(|_| "xterm".to_string());
-            let path = &fmstate.borrow().current_path;
+            let file = &fmstate.borrow().current_path;
 
-            if let Err(err) = Command::new(&terminal_cmd).current_dir(path).spawn() {
-                eprintln!("Failed to open terminal '{}': {}", terminal_cmd, err);
+            if let Some(local_path) = file.path() {
+                if let Err(err) = Command::new(&terminal_cmd).current_dir(local_path).spawn() {
+                    eprintln!("Failed to open terminal '{}': {}", terminal_cmd, err);
+                }
+            } else {
+                eprintln!(
+                    "Cannot open terminal: current path is virtual or remote: {}",
+                    file.uri()
+                );
             }
 
             popover.popdown();
@@ -105,7 +112,7 @@ pub fn get_file_right_click(
                                 let fmstate_ref = fmstate.borrow();
                                 crate::files_panel::populate_files_list(
                                     &files_list,
-                                    Path::new(&fmstate_ref.current_path),
+                                    &fmstate_ref.current_path,
                                     &fmstate_ref.settings.show_hidden,
                                 );
                             }
