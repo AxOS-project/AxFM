@@ -7,7 +7,6 @@ mod state;
 mod style;
 mod utils;
 
-use gtk4::gio::SimpleAction;
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, Box as GtkBox, GestureClick, Orientation, Paned};
 use gtk4::{gio, glib};
@@ -38,20 +37,8 @@ fn build_fm(app: &Application) {
     let home_path = gio::File::for_path(glib::home_dir());
     let fmstate = Rc::new(RefCell::new(state::FmState::new(home_path.clone())));
 
-    // TODO: Move it to its own module
-    let initial = fmstate.borrow().settings.show_hidden;
-    let show_hidden_action = SimpleAction::new_stateful("show_hidden", None, &initial.into());
-
-    show_hidden_action.connect_activate(glib::clone!(
-        #[strong]
-        fmstate,
-        move |action, _| {
-            let current: bool = action.state().unwrap().get().unwrap();
-            action.set_state(&(!current).into());
-            fmstate.borrow_mut().settings.show_hidden = !current;
-        }
-    ));
-    window.add_action(&show_hidden_action);
+    // implement all actions for the headerbar
+    headerbar::implement_actions(&window, &app, fmstate.clone());
 
     let (files_scroll, files_list, list_view) = files_panel::build_files_panel(fmstate.clone());
     let (sidebar_box, sidebar_selection) = sidebar::build_sidebar(fmstate.clone(), &files_list);

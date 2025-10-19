@@ -1,15 +1,14 @@
 use crate::state::FmState;
 use gtk4::prelude::*;
 use gtk4::{
-    Box as GtkBox, Label, ListView, Popover, ScrolledWindow, SignalListItemFactory, SingleSelection,
-    StringList,
+    Box as GtkBox, Label, ListView, Popover, SignalListItemFactory, SingleSelection, StringList,
 };
 use gtk4::{gio, glib};
 use std::cell::RefCell;
 use std::env;
+use std::path::Path;
 use std::process::Command;
 use std::rc::Rc;
-use std::path::Path;
 
 struct MenuItem<'a> {
     label: &'a str,
@@ -39,9 +38,8 @@ pub fn get_empty_right_click(content_area: &GtkBox, fmstate: Rc<RefCell<FmState>
 
     let items_to_show: Vec<Rc<MenuItem>> = menu_items.clone();
 
-    let string_list: StringList = StringList::new(
-        &items_to_show.iter().map(|item| item.label).collect::<Vec<_>>()
-    );
+    let string_list: StringList =
+        StringList::new(&items_to_show.iter().map(|item| item.label).collect::<Vec<_>>());
 
     let selection_model = SingleSelection::new(Some(string_list.clone()));
     selection_model.set_can_unselect(true);
@@ -60,59 +58,66 @@ pub fn get_empty_right_click(content_area: &GtkBox, fmstate: Rc<RefCell<FmState>
         list_item.set_child(Some(&row));
     });
 
-    factory.connect_bind(glib::clone!(#[strong] items_to_show, move |_, list_item| {
-        let row = list_item.child().unwrap().downcast::<GtkBox>().unwrap();
-        let image = row.first_child().unwrap().downcast::<gtk4::Image>().unwrap();
-        let label = row.last_child().unwrap().downcast::<Label>().unwrap();
+    factory.connect_bind(glib::clone!(
+        #[strong]
+        items_to_show,
+        move |_, list_item| {
+            let row = list_item.child().unwrap().downcast::<GtkBox>().unwrap();
+            let image = row.first_child().unwrap().downcast::<gtk4::Image>().unwrap();
+            let label = row.last_child().unwrap().downcast::<Label>().unwrap();
 
-        let obj = list_item.item().unwrap().downcast::<gtk4::StringObject>().unwrap();
-        let text = obj.string();
-        label.set_text(&text);
-
-        if let Some(menu_item) = items_to_show.iter().find(|i| i.label == text) {
-            image.set_icon_name(Some(menu_item.icon_name));
-        }
-    }));
-
-    selection_model.connect_selected_notify(glib::clone!(#[weak] popover, #[strong] fmstate, move |sel| {
-        if let Some(item) = sel.selected_item() {
-            let obj = item.downcast_ref::<gtk4::StringObject>().unwrap();
+            let obj = list_item.item().unwrap().downcast::<gtk4::StringObject>().unwrap();
             let text = obj.string();
+            label.set_text(&text);
 
-            match text.as_str() {
-                "New Folder" => println!("New Folder clicked"),
-                "Open Terminal Here" => {
-                    let terminal_cmd = env::var("TERMINAL").unwrap_or_else(|_| "xterm".to_string());
-                    let file = &fmstate.borrow().current_path;
-
-                    if let Some(local_path) = file.path() {
-                        if let Err(err) =
-                            Command::new(&terminal_cmd).current_dir(local_path).spawn()
-                        {
-                            eprintln!("Failed to open terminal '{}': {}", terminal_cmd, err);
-                        }
-                    } else {
-                        eprintln!(
-                            "Cannot open terminal: current path is virtual or remote: {}",
-                            file.uri()
-                        );
-                    }
-                }
-                _ => {}
+            if let Some(menu_item) = items_to_show.iter().find(|i| i.label == text) {
+                image.set_icon_name(Some(menu_item.icon_name));
             }
-
-            sel.unselect_all();
-            popover.popdown();
         }
-    }));
+    ));
+
+    selection_model.connect_selected_notify(glib::clone!(
+        #[weak]
+        popover,
+        #[strong]
+        fmstate,
+        move |sel| {
+            if let Some(item) = sel.selected_item() {
+                let obj = item.downcast_ref::<gtk4::StringObject>().unwrap();
+                let text = obj.string();
+
+                match text.as_str() {
+                    "New Folder" => println!("New Folder clicked"),
+                    "Open Terminal Here" => {
+                        let terminal_cmd =
+                            env::var("TERMINAL").unwrap_or_else(|_| "xterm".to_string());
+                        let file = &fmstate.borrow().current_path;
+
+                        if let Some(local_path) = file.path() {
+                            if let Err(err) =
+                                Command::new(&terminal_cmd).current_dir(local_path).spawn()
+                            {
+                                eprintln!("Failed to open terminal '{}': {}", terminal_cmd, err);
+                            }
+                        } else {
+                            eprintln!(
+                                "Cannot open terminal: current path is virtual or remote: {}",
+                                file.uri()
+                            );
+                        }
+                    }
+                    _ => {}
+                }
+
+                sel.unselect_all();
+                popover.popdown();
+            }
+        }
+    ));
 
     let list_view = ListView::new(Some(selection_model), Some(factory));
-    let scroll = ScrolledWindow::new();
-    scroll.set_child(Some(&list_view));
-    scroll.set_vexpand(true);
-    scroll.set_min_content_width(180);
 
-    popover.set_child(Some(&scroll));
+    popover.set_child(Some(&list_view));
     popover
 }
 
@@ -125,8 +130,10 @@ pub fn get_file_right_click(
     popover.set_parent(content_area);
 
     popover.connect_show(glib::clone!(
-        #[strong] fmstate,
-        #[weak] files_list,
+        #[strong]
+        fmstate,
+        #[weak]
+        files_list,
         move |popover| {
             let fmstate_ref = fmstate.borrow();
             if let Some(path) = &fmstate_ref.popup_focused_file {
@@ -138,8 +145,14 @@ pub fn get_file_right_click(
                         show_if_dir: false,
                     }),
                     Rc::new(MenuItem {
-                        label: "Move To Trash",
+                        label: "Move to Trash",
                         icon_name: "user-trash-symbolic",
+                        show_if_file: true,
+                        show_if_dir: true,
+                    }),
+                    Rc::new(MenuItem {
+                        label: "Rename...",
+                        icon_name: "document-edit-symbolic",
                         show_if_file: true,
                         show_if_dir: true,
                     }),
@@ -160,7 +173,7 @@ pub fn get_file_right_click(
                     .filter(|item| (item.show_if_file && is_file) || (item.show_if_dir && is_dir))
                     .collect();
                 let string_list: StringList = StringList::new(
-                    &items_to_show.iter().map(|item| item.label).collect::<Vec<_>>()
+                    &items_to_show.iter().map(|item| item.label).collect::<Vec<_>>(),
                 );
                 let selection_model = SingleSelection::new(Some(string_list.clone()));
                 selection_model.set_can_unselect(true);
@@ -179,69 +192,88 @@ pub fn get_file_right_click(
                     list_item.set_child(Some(&row));
                 });
 
-                factory.connect_bind(glib::clone!(#[strong] items_to_show, move |_, list_item| {
-                    let row = list_item.child().unwrap().downcast::<GtkBox>().unwrap();
-                    let image = row.first_child().unwrap().downcast::<gtk4::Image>().unwrap();
-                    let label = row.last_child().unwrap().downcast::<Label>().unwrap();
+                factory.connect_bind(glib::clone!(
+                    #[strong]
+                    items_to_show,
+                    move |_, list_item| {
+                        let row = list_item.child().unwrap().downcast::<GtkBox>().unwrap();
+                        let image = row.first_child().unwrap().downcast::<gtk4::Image>().unwrap();
+                        let label = row.last_child().unwrap().downcast::<Label>().unwrap();
 
-                    let obj = list_item.item().unwrap().downcast::<gtk4::StringObject>().unwrap();
-                    let text = obj.string();
-                    label.set_text(&text);
-
-                    if let Some(menu_item) = items_to_show.iter().find(|i| i.label == text) {
-                        image.set_icon_name(Some(menu_item.icon_name));
-                    }
-                }));
-
-                selection_model.connect_selected_notify(glib::clone!(#[strong] fmstate, #[weak] files_list, #[weak] popover, move |sel| {
-                    if let Some(item) = sel.selected_item() {
-                        let obj = item.downcast_ref::<gtk4::StringObject>().unwrap();
+                        let obj =
+                            list_item.item().unwrap().downcast::<gtk4::StringObject>().unwrap();
                         let text = obj.string();
+                        label.set_text(&text);
 
-                        match text.as_str() {
-                            "Open File" => println!("Open File clicked"),
-                            "Open in Terminal" => {
-                                let terminal_cmd =
-                                    env::var("TERMINAL").unwrap_or_else(|_| "xterm".to_string());
-                                if let Some(path) = &fmstate.borrow().popup_focused_file {
-                                    if let Err(err) =
-                                        Command::new(&terminal_cmd).current_dir(path).spawn()
-                                    {
-                                        eprintln!("Failed to open terminal '{}': {}", terminal_cmd, err);
-                                    }
-                                }
-                            }
-                            "Move to Trash" => {
-                                if let Some(path) = &fmstate.borrow().popup_focused_file {
-                                    let file = gio::File::for_path(path);
-                                    match file.trash(None::<&gio::Cancellable>) {
-                                        Ok(_) => {
-                                            let fmstate_ref = fmstate.borrow();
-                                            crate::files_panel::populate_files_list(
-                                                &files_list,
-                                                &fmstate_ref.current_path,
-                                                &fmstate_ref.settings.show_hidden,
+                        if let Some(menu_item) = items_to_show.iter().find(|i| i.label == text) {
+                            image.set_icon_name(Some(menu_item.icon_name));
+                        }
+                    }
+                ));
+
+                selection_model.connect_selected_notify(glib::clone!(
+                    #[strong]
+                    fmstate,
+                    #[weak]
+                    files_list,
+                    #[weak]
+                    popover,
+                    move |sel| {
+                        if let Some(item) = sel.selected_item() {
+                            let obj = item.downcast_ref::<gtk4::StringObject>().unwrap();
+                            let text = obj.string();
+
+                            match text.as_str() {
+                                "Open File" => println!("Open File clicked"),
+                                "Open in Terminal" => {
+                                    let terminal_cmd = env::var("TERMINAL")
+                                        .unwrap_or_else(|_| "xterm".to_string());
+                                    if let Some(path) = &fmstate.borrow().popup_focused_file {
+                                        if let Err(err) =
+                                            Command::new(&terminal_cmd).current_dir(path).spawn()
+                                        {
+                                            eprintln!(
+                                                "Failed to open terminal '{}': {}",
+                                                terminal_cmd, err
                                             );
                                         }
-                                        Err(e) => eprintln!("Error while moving to trash: {}", e),
                                     }
                                 }
+                                "Move to Trash" => {
+                                    if let Some(path) = &fmstate.borrow().popup_focused_file {
+                                        let file = gio::File::for_path(path);
+                                        match file.trash(None::<&gio::Cancellable>) {
+                                            Ok(_) => {
+                                                let fmstate_ref = fmstate.borrow();
+                                                crate::files_panel::populate_files_list(
+                                                    &files_list,
+                                                    &fmstate_ref.current_path,
+                                                    &fmstate_ref.settings.show_hidden,
+                                                );
+                                            }
+                                            Err(e) => {
+                                                eprintln!("Error while moving to trash: {}", e)
+                                            }
+                                        }
+                                    } else {
+                                        eprintln!("Popup Focused File not found!");
+                                    }
+                                }
+                                "Rename..." => {
+                                    println!("Renaming file...");
+                                }
+                                _ => {}
                             }
-                            _ => {}
-                        }
 
-                        sel.unselect_all();
-                        popover.popdown();
+                            sel.unselect_all();
+                            popover.popdown();
+                        }
                     }
-                }));
+                ));
 
                 let list_view = ListView::new(Some(selection_model), Some(factory));
-                let scroll = ScrolledWindow::new();
-                scroll.set_child(Some(&list_view));
-                scroll.set_vexpand(true);
-                scroll.set_min_content_width(180);
 
-                popover.set_child(Some(&scroll));
+                popover.set_child(Some(&list_view));
             }
         }
     ));
